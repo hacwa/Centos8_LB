@@ -1,0 +1,242 @@
+global
+    log         127.0.0.1 local2
+
+ 
+
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy
+    group       haproxy
+    daemon
+    ssl-default-bind-ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-S
+HA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256
+    ssl-default-server-ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM
+-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256
+    # turn on stats unix socket
+    stats socket /var/lib/haproxy/stats
+
+ 
+
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          480m
+    timeout server          480m
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 3000
+#    ssl-default-bind-ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-
+SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+#    ssl-default-server-ciphers ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GC
+M-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+userlist UsersAuth
+   group admin users rob
+   user rob insecure-password <Nice try Stu ;)>
+
+ 
+
+listen stats
+        bind 10.20.30.94:8090
+        mode http
+        stats enable
+        stats hide-version
+        # force HTTP Auth to view stats
+        stats auth        rob_admin:<Nice try Stu ;)>
+        # refresh rate of stats page
+        maxconn 10
+        stats refresh     2s
+        stats uri /stats
+        server stats 127.0.0.1:8090
+
+ 
+
+#frontend galerafront
+#mode tcp
+#        bind 192.168.1.33:3306
+#        timeout client 480m
+#        timeout server 480m
+#        default_backend galera_backend_rw_3306
+
+ 
+
+frontend home
+    bind 10.20.30.94:3389
+    mode        tcp
+    default_backend     home_backend
+
+ 
+
+frontend  main
+    bind 10.20.30.94:13000
+    mode                    tcp
+    default_backend             nodechat
+
+ 
+
+frontend public
+    default_backend             main_backend
+    mode http
+    bind 10.20.30.94:80
+    http-response set-header X-Frame-Options "SAMEORIGIN"
+    http-response set-header X-Xss-Protection "1; mode=block"
+    acl letsencrypt-acl path_beg /.well-known/acme-challenge/
+    acl host_floogit hdr(host) -i floogit.com
+    acl host_pihole hdr(host) -i pihole.floogit.com
+    acl host_elk_floogit hdr(host) -i elk.floogit.com
+    acl host_tech_floogit hdr(host) -i tech.floogit.com
+    acl host_seaglass hdr(host) -i seaglasssecrets.com
+    acl host_gitlab_floogit hdr(host) -i gitlab.floogit.com
+    acl host_webmail_floogit hdr(host) -i webmail.floogit.com
+    acl host_wmail_floogit hdr(host) -i wmail.floogit.com
+    acl host_webadmin_floogit hdr(host) -i webadmin.floogit.com
+    acl host_prox_floogit hdr(host) -i prox.floogit.com
+    acl host_cablemama hdr(host) -i cablemama.com
+    acl host_cablemama hdr(host) -i cablemama.co.uk
+    acl AuthOkay http_auth(UsersAuth)
+    http-request auth if host_elk_floogit !AuthOkay !letsencrypt-acl
+    redirect scheme https code 301 if !{ ssl_fc } host_prox_floogit
+    redirect scheme https code 301 if !{ ssl_fc } host_elk_floogit
+    use_backend ssl_dcv if letsencrypt-acl
+    use_backend gitlab_backend if host_gitlab_floogit
+    use_backend pihole_backend if host_pihole
+    use_backend main_backend if host_webmail_floogit
+    use_backend main_backend if host_wmail_floogit
+    use_backend main_backend if host_webadmin_floogit
+    use_backend main_backend if host_floogit
+    use_backend main_backend if host_seaglass
+    use_backend main_backend if host_tech_floogit
+    use_backend main_backend if host_cablemama
+    use_backend elk_backend if host_elk_floogit
+frontend public_ssl
+    mode http
+    bind 10.20.30.94:443 ssl crt-list /etc/haproxy/ssl/crt-list.txt alpn h2,http/1.1 force-tlsv12
+    http-response set-header X-Frame-Options "SAMEORIGIN"
+    http-response set-header X-Xss-Protection "1; mode=block"
+    acl letsencrypt-acl path_beg /.well-known/acme-challenge/
+    acl AuthOkay http_auth(UsersAuth)
+    http-request auth if { hdr(host) -i elk.floogit.com } !AuthOkay !letsencrypt-acl
+    use_backend ssl_dcv if letsencrypt-acl
+    use_backend main_backend_ssl if { hdr(host) -i www.floogit.com }
+    use_backend main_backend_ssl if { hdr(host) -i tech.floogit.com }
+   use_backend main_backend_ssl if { hdr(host) -i floogit.com }
+    use_backend elk_backend if { hdr(host) -i elk.floogit.com }
+    use_backend main_backend_ssl if { hdr(host) -i seaglasssecrets.com }
+    use_backend main_backend_ssl if { hdr(host) -i www.seaglasssecrets.com }
+    use_backend gitlab_backend_ssl if { hdr(host) -i gitlab.floogit.com }
+    use_backend main_backend_ssl if { hdr(host) -i webmail.floogit.com }
+    use_backend main_backend_ssl if { hdr(host) -i wmail.floogit.com }
+    use_backend main_backend_ssl if { hdr(host) -i webadmin.floogit.com }
+    use_backend prox_backend_ssl if { hdr(host) -i prox.floogit.com }
+    use_backend main_backend_ssl if { hdr(host) -i cablemama.com }
+    use_backend main_backend_ssl if { hdr(host) -i www.cablemama.com }
+    use_backend main_backend_ssl if { hdr(host) -i www.cablemama.co.uk }
+    use_backend main_backend_ssl if { hdr(host) -i cablemama.co.uk }
+    default_backend main_backend_ssl
+backend static
+    balance     roundrobin
+    server      static 127.0.0.1:4331 check
+
+ 
+
+backend ssl_dcv
+    server letsencrypt 10.20.30.94:8888
+
+ 
+
+backend main_backend_ssl
+    mode http
+    server srv1 10.20.30.90:443 check ssl verify none
+
+ 
+
+backend main_backend
+    mode http
+    server srv1 10.20.30.90:80
+
+ 
+
+backend elk_backend
+    mode http
+    server srv1 10.20.30.50:5601    
+    backend gitlab_backend_ssl
+    mode http
+    server srv1 10.20.30.200:443 check ssl verify none
+
+ 
+
+backend gitlab_backend
+    mode http
+    server srv1 10.20.30.200:80
+
+ 
+
+backend pihole_backend
+    mode http
+    server srv1 10.20.30.210:80
+
+ 
+
+backend mail1_backend_ssl
+    mode http
+    server srv1 10.20.30.40:443 check ssl verify none
+
+ 
+
+backend prox_backend_ssl
+    mode http
+    server srv 10.20.30.4:8006 check ssl verify none
+
+ 
+
+backend mail1_backend
+    mode http
+    server srv1 10.20.30.40:80
+
+ 
+
+backend home_backend
+    mode tcp
+    timeout server  120s
+    balance leastconn
+    server home-1 86.5.185.74:3389
+
+ 
+
+backend nodechat
+    timeout server  120s
+    balance leastconn
+
+ 
+
+    # based on cookie set in header
+    # haproxy will add the cookies for us
+    cookie SRVNAME insert
+    server node-1 10.20.30.96:3500 cookie S1 check
+    server node-2 10.20.30.96:3501 cookie S2 check
+    server node-3 10.20.30.96:3502 cookie S3 check
+    server node-4 10.20.30.97:3503 cookie S4 check
+#    balance     leastconn
+#    server  node1 10.20.30.96:3500 check
+#    server  node2 10.20.30.96:3501 check
+#    server  node3 10.20.30.96:3502 check
+#    server  node4 10.20.30.96:3503 check
+
+ 
+
+#backend galera_backend_rw_3306
+#balance leastconn
+#option httpchk
+#mode tcp
+#server cru-galera-01 192.168.1.200:3306 check port 9200 inter 5000 rise 2 fall 2
+#server cru-galera-02 192.168.1.201:3306 check port 9200 inter 5000 rise 2 fall 2
+#server cru-galera-03 192.168.1.202:3306 check port 9200 inter 5000 rise 2 fall 2
