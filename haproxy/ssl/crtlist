@@ -1,0 +1,3 @@
+/etc/haproxy/ssl/wildcard_hacwa.co.uk.crt
+/etc/haproxy/ssl/wildcard_hacwa.co.uk.key
+/etc/haproxy/ssl/wildcard_hacwa.co.uk.ca
