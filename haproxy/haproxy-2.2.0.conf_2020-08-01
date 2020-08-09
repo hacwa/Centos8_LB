@@ -41,14 +41,24 @@ frontend sites
 
         acl                             plexcouk                hdr_end(host) -m str -i plex.hacwa.co.uk
         acl                             sabcouk                 hdr_end(host) -m str -i sab.hacwa.co.uk
+        acl                             radarrcouk              hdr_end(host) -m str -i radarr.hacwa.co.uk
+        acl                             sonarrcouk              hdr_end(host) -m str -i sonarr.hacwa.co.uk
         acl                             reportcouk              hdr_end(host) -m str -i report.hacwa.co.uk
+        acl                             animecouk               hdr_end(host) -m str -i anime.hacwa.co.uk
+        acl                             radarr4kcouk            hdr_end(host) -m str -i radarr-4k.hacwa.co.uk
+        acl                             vcentercouk             hdr_end(host) -m str -i vcenter.hacwa.co.uk
         acl                             requestcouk             hdr_end(host) -m str -i request.hacwa.co.uk
         acl                             qbitcouk	        hdr_end(host) -m str -i qbit.hacwa.co.uk
 
 
         use_backend                     plex                    if              plexcouk
         use_backend                     sab                     if              sabcouk
+        use_backend                     radarr                  if              radarrcouk
+        use_backend                     sonarr                  if              sonarrcouk
         use_backend                     report                  if              reportcouk
+        use_backend                     anime-sonarr            if              animecouk
+        use_backend                     radarr4kcouk            if              radarr4kcouk
+        use_backend                     vcentercouk             if              vcentercouk
         use_backend                     requestcouk             if              requestcouk
         use_backend                     qbitcouk            	if              qbitcouk
 
@@ -62,9 +72,29 @@ backend sab
         id                      102
         server                  sab 192.168.104.4:8080 id 102 check inter 1000
 
+backend radarr
+        id                      103
+        server                  radarr 192.168.104.4:7878 id 103 check inter 1000
+
+backend sonarr
+        id                      104
+        server                  sonarr 192.168.104.4:18989 id 104 check inter 1000
+
 backend report
         id                      106
         server                  report 192.168.104.4:8181 id 106 check inter 1000
+
+backend anime-sonarr
+        id                      107
+        server                  anime-sonarr 80.244.196.148:8989 id 107
+
+ backend radarr4kcouk
+         id                      108
+         server                  radarr4kcouk 80.244.196.148:7879 id 108  check inter 1000
+
+backend vcentercouk
+         id                      109
+         server                  vcentercouk 10.0.13.6:443 id 109 ssl verify none check  inter 1000
 
 backend requestcouk
 	id			110
